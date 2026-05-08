@@ -65,9 +65,20 @@
             const [isAnalyzing, setIsAnalyzing] = useState(false);
             const [result, setResult] = useState(null);
             const [error, setError] = useState(null);
+            const [isCameraActive, setIsCameraActive] = useState(false);
             
             const resultRef = useRef(null);
             const fileInputRef = useRef(null);
+            const videoRef = useRef(null);
+            const streamRef = useRef(null);
+
+            useEffect(() => {
+                return () => {
+                    if (streamRef.current) {
+                        streamRef.current.getTracks().forEach(track => track.stop());
+                    }
+                };
+            }, []);
 
             const saveApiKey = (e) => {
                 e.preventDefault();
@@ -85,8 +96,48 @@
                         setImage(event.target.result);
                         setResult(null);
                         setError(null);
+                        stopCamera();
                     };
                     reader.readAsDataURL(file);
+                }
+            };
+
+            const startCamera = async () => {
+                setIsCameraActive(true);
+                setImage(null);
+                setResult(null);
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' } 
+                    });
+                    streamRef.current = stream;
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                    }
+                } catch (err) {
+                    setError("카메라를 시작할 수 없습니다. 권한을 확인해주세요.");
+                    setIsCameraActive(false);
+                }
+            };
+
+            const stopCamera = () => {
+                if (streamRef.current) {
+                    streamRef.current.getTracks().forEach(track => track.stop());
+                    streamRef.current = null;
+                }
+                setIsCameraActive(false);
+            };
+
+            const capturePhoto = () => {
+                if (videoRef.current) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = videoRef.current.videoWidth;
+                    canvas.height = videoRef.current.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(videoRef.current, 0, 0);
+                    const dataUrl = canvas.toDataURL('image/jpeg');
+                    setImage(dataUrl);
+                    stopCamera();
                 }
             };
 
@@ -186,19 +237,48 @@
 
                     <main className="flex-1 max-w-[1400px] w-full mx-auto p-6 gap-6 flex flex-col lg:flex-row">
                         <div className="w-full lg:w-1/3 flex flex-col gap-6">
-                            {!image ? (
-                                <div onClick={() => fileInputRef.current.click()} className="h-80 border-2 border-dashed border-slate-200 bg-white rounded-3xl flex flex-col items-center justify-center p-8 cursor-pointer hover:border-blue-400 group transition-all">
-                                    <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageUpload} accept="image/*"/>
-                                    <div className="w-20 h-20 bg-white text-blue-500 rounded-full flex items-center justify-center mb-6 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
-                                        <Icon name="upload" size={32} />
+                            {!image && !isCameraActive ? (
+                                <div className="space-y-4">
+                                    <div 
+                                        onClick={() => fileInputRef.current.click()} 
+                                        className="h-60 border-2 border-dashed border-slate-200 bg-white rounded-3xl flex flex-col items-center justify-center p-8 cursor-pointer hover:border-blue-400 group transition-all"
+                                    >
+                                        <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageUpload} accept="image/*"/>
+                                        <div className="w-16 h-16 bg-white text-blue-500 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
+                                            <Icon name="upload" size={24} />
+                                        </div>
+                                        <p className="font-extrabold text-slate-900 text-lg">기기에서 업로드</p>
                                     </div>
-                                    <p className="font-extrabold text-slate-900 text-lg">사진 업로드</p>
+                                    
+                                    <div 
+                                        onClick={startCamera} 
+                                        className="h-60 border-2 border-dashed border-slate-200 bg-white rounded-3xl flex flex-col items-center justify-center p-8 cursor-pointer hover:border-green-400 group transition-all"
+                                    >
+                                        <div className="w-16 h-16 bg-white text-green-500 rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
+                                            <Icon name="camera" size={24} />
+                                        </div>
+                                        <p className="font-extrabold text-slate-900 text-lg">사진 직접 찍기</p>
+                                    </div>
+                                </div>
+                            ) : isCameraActive ? (
+                                <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-4">
+                                    <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-black border border-slate-100">
+                                        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={capturePhoto} className="flex-1 py-4 bg-green-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2">
+                                            <Icon name="camera" size={20} /> 찰영하기
+                                        </button>
+                                        <button onClick={stopCamera} className="px-6 bg-slate-100 rounded-2xl font-bold text-slate-600">
+                                            취소
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
                                     <div className="relative aspect-square rounded-2xl overflow-hidden bg-slate-50 border border-slate-100">
                                         <img src={image} className="w-full h-full object-contain" />
-                                        <button onClick={() => setImage(null)} className="absolute top-3 right-3 p-2 bg-white/90 shadow-sm rounded-xl">
+                                        <button onClick={() => {setImage(null); stopCamera();}} className="absolute top-3 right-3 p-2 bg-white/90 shadow-sm rounded-xl">
                                             <Icon name="refresh-cw" size={16} />
                                         </button>
                                     </div>
