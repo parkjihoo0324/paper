@@ -1,0 +1,12 @@
+{
+  "name": "Paper2Digital",
+  "description": "변환 도구 전문 개발자 - 종이 프린트 사진을 스마트하게 분석하고 PDF로 요약 변환해주는 고등학생용 스터디 앱",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "OCR",
+    "AI Summarization",
+    "PDF Generation"
+  ]
+}
